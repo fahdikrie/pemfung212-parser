@@ -58,8 +58,7 @@ data SrtSubtitle =
     }
   deriving (Show, Read)
 
-main
-  ::  IO ()
+main :: IO ()
 main
   = do
   putStrLn "What is the SRT file path?"
@@ -72,16 +71,11 @@ main
   putStrLn ""
   print result
 
-parseSrt
-  ::  ReadP [SrtSubtitle]
-parseSrt
-  =
-  manyTill parseBlock (skipSpaces >> eof)
+parseSrt :: ReadP [SrtSubtitle]
+parseSrt = manyTill parseBlock (skipSpaces >> eof)
 
-parseBlock
-  ::  ReadP SrtSubtitle
-parseBlock
-  = do
+parseBlock :: ReadP SrtSubtitle
+parseBlock = do
   i      <- parseIndex
   (s, e) <- parseTimestamps
   c      <- parseCoordinates
@@ -95,28 +89,19 @@ parseBlock
       , taggedText  = t
       }
 
-parseBlock'
-  ::  ReadP SrtSubtitle
-parseBlock'
-  =
-      SrtSubtitle
+parseBlock' :: ReadP SrtSubtitle
+parseBlock' = SrtSubtitle
   <$> parseIndex
   <*> parseStartTimestamp
   <*> parseEndTimestamp
   <*> parseCoordinates
   <*> parseTextLines
 
-parseIndex
-  ::  ReadP Int
-parseIndex
-  =
-      skipSpaces
-  >>  readInt <$> parseNumber
+parseIndex :: ReadP Int
+parseIndex = skipSpaces >> readInt <$> parseNumber
 
-parseTimestamps
-  ::  ReadP (Timestamp, Timestamp)
-parseTimestamps
-  = do
+parseTimestamps :: ReadP (Timestamp, Timestamp)
+parseTimestamps = do
   _   <- char '\n'
   s   <- parseTimestamp
   _   <- skipSpaces
@@ -125,26 +110,17 @@ parseTimestamps
   e   <- parseTimestamp
   return (s, e)
 
-parseStartTimestamp
-  ::  ReadP Timestamp
-parseStartTimestamp
-  =
-      char '\n'
-  >>  parseTimestamp
+parseStartTimestamp :: ReadP Timestamp
+parseStartTimestamp = char '\n' >> parseTimestamp
 
-parseEndTimestamp
-  ::  ReadP Timestamp
-parseEndTimestamp
-  =
-      skipSpaces
+parseEndTimestamp :: ReadP Timestamp
+parseEndTimestamp = skipSpaces
   >>  string "-->"
   >>  skipSpaces
   >>  parseTimestamp
 
-parseTimestamp
-  ::  ReadP Timestamp
-parseTimestamp
-  = do
+parseTimestamp :: ReadP Timestamp
+parseTimestamp = do
   h  <- parseNumber
   _  <- char ':'
   m  <- parseNumber
@@ -160,11 +136,8 @@ parseTimestamp
       , milliseconds = readInt m'
       }
 
-parseCoordinates
-  ::  ReadP (Maybe SrtSubtitleCoordinates)
-parseCoordinates
-  =
-  option Nothing $ do
+parseCoordinates :: ReadP (Maybe SrtSubtitleCoordinates)
+parseCoordinates = option Nothing $ do
     _  <- skipSpaces1
     x1 <- parseCoordinate 'x' 1
     _  <- skipSpaces1
@@ -182,98 +155,52 @@ parseCoordinates
           , y2 = readInt y2
           }
 
-parseCoordinate
-  ::  Char
-  ->  Int
-  ->  ReadP String
-parseCoordinate
-  c
-  n
-  = do
+parseCoordinate :: Char -> Int -> ReadP String
+parseCoordinate c n = do
   _  <- char (Data.Char.toUpper c) <|> char (Data.Char.toLower c)
   _  <- string $ show n ++ ":"
   parseNumber
 
-parseTextLines
-  ::  ReadP [TaggedText]
-parseTextLines
-  =
-      char '\n'
-  >>  (getTaggedText <$> manyTill parseAny parseEndOfTextLines)
+parseTextLines :: ReadP [TaggedText]
+parseTextLines = char '\n' >> (getTaggedText <$> manyTill parseAny parseEndOfTextLines)
 
-getTaggedText
-  ::  String
-  ->  [TaggedText]
-getTaggedText
-  s
-  =
-  fst
-    $ foldl
-      folder
-      ([], [])
-      parsed
+getTaggedText :: String -> [TaggedText]
+getTaggedText s = fst
+  $ foldl
+    folder
+    ([], [])
+    parsed
   where
-    parsed
-      ::  [String]
-    parsed
-      =
+    parsed :: [String]
+    parsed =
       case readP_to_S (parseTaggedText []) s of
         []      -> [s]
         r@(_:_) -> (fst . last) r
-    folder
-      ::  ([TaggedText], [Tag])
-      ->  String
-      ->  ([TaggedText], [Tag])
-    folder
-      (tt, t)
-      x
+    folder :: ([TaggedText], [Tag]) -> String -> ([TaggedText], [Tag])
+    folder (tt, t) x
       | isTag x   = (tt, updateTags t x)
       | otherwise = (tt ++ [TaggedText { text = x, tags = t}], t)
 
-updateTags
-  ::  [Tag]
-  ->  String
-  ->  [Tag]
-updateTags
-  tags
-  x
+updateTags :: [Tag] -> String -> [Tag]
+updateTags tags x
   | isClosingTag x = remove compare' tags (makeTag x)
   | isOpeningTag x = add    compare' tags (makeTag x)
   | otherwise      = tags
   where
-    compare'
-      ::  Tag
-      ->  Tag
-      ->  Bool
-    compare'
-      a
-      b
-      =
-      name a /= name b
+    compare' :: Tag -> Tag -> Bool
+    compare' a b = name a /= name b
 
-makeTag
-  ::  String
-  ->  Tag
-makeTag
-  s
-  =
-  Tag
-    { name       = getTagName       s
-    , attributes = getTagAttributes s
-    }
+makeTag :: String -> Tag
+makeTag s = Tag
+  { name       = getTagName       s
+  , attributes = getTagAttributes s
+  }
 
-parseEndOfTextLines
-  ::  ReadP ()
-parseEndOfTextLines
-  =
-  void (string "\n\n") <|> eof
+parseEndOfTextLines :: ReadP ()
+parseEndOfTextLines = void (string "\n\n") <|> eof
 
-parseTaggedText
-  ::  [String]
-  ->  ReadP [String]
-parseTaggedText
-  strings
-  = do
+parseTaggedText :: [String] -> ReadP [String]
+parseTaggedText strings = do
   s <- look
   case s of
     "" -> return strings
@@ -281,31 +208,23 @@ parseTaggedText
       r <- munch1 (/= '<') <++ parseClosingTag <++ parseOpeningTag
       parseTaggedText $ strings ++ [r]
 
-parseOpeningTag
-  ::  ReadP String
-parseOpeningTag
-  = do
+parseOpeningTag :: ReadP String
+parseOpeningTag = do
   _ <- char '<'
   t <- munch1 (\ c -> c /= '/' && c /= '>')
   _ <- char '>'
   return $ "<" ++ t ++ ">"
 
-parseClosingTag
-  ::  ReadP String
-parseClosingTag
-  = do
+parseClosingTag :: ReadP String
+parseClosingTag = do
   _ <- char '<'
   _ <- char '/'
   t <- munch1 (/= '>')
   _ <- char '>'
   return $ "</" ++ t ++ ">"
 
-getTagAttributes
-  ::  String
-  ->  [TagAttribute]
-getTagAttributes
-  s
-  =
+getTagAttributes :: String -> [TagAttribute]
+getTagAttributes s =
   if isOpeningTag s
     then
       case readP_to_S (parseTagAttributes []) s of
@@ -314,20 +233,14 @@ getTagAttributes
     else
       []
 
-getTagName
-  ::  String
-  ->  String
-getTagName
-  s
-  =
+getTagName :: String -> String
+getTagName s =
   case readP_to_S parseTagName s of
     []    -> ""
     (x:_) -> toLower' $ fst x
 
-parseTagName
-  ::  ReadP String
-parseTagName
-  = do
+parseTagName :: ReadP String
+parseTagName = do
   _ <- char '<'
   _ <- munch (== '/')
   _ <- skipSpaces
@@ -336,12 +249,8 @@ parseTagName
   _ <- char '>'
   return n
 
-parseTagAttributes
-  ::  [TagAttribute]
-  ->  ReadP [TagAttribute]
-parseTagAttributes
-  tagAttributes
-  = do
+parseTagAttributes :: [TagAttribute] -> ReadP [TagAttribute]
+parseTagAttributes tagAttributes = do
   s <- look
   case s of
     "" -> return tagAttributes
@@ -352,10 +261,8 @@ parseTagAttributes
         '<' -> trimTagname >> parseTagAttributes'
         _   -> parseTagAttributes'
   where
-    parseTagAttributes'
-      ::  ReadP [TagAttribute]
-    parseTagAttributes'
-      = do
+    parseTagAttributes' :: ReadP [TagAttribute]
+    parseTagAttributes' = do
       tagAttribute <- parseTagAttribute
       parseTagAttributes
         ( add
@@ -364,19 +271,14 @@ parseTagAttributes
             tagAttribute
         )
 
-trimTagname
-  :: ReadP ()
-trimTagname
-  =
-      char '<'
+trimTagname :: ReadP ()
+trimTagname = char '<'
   >> skipSpaces
   >> munch1 (\ c -> c /= ' ' && c /= '>')
   >> return ()
 
-parseTagAttribute
-  ::  ReadP TagAttribute
-parseTagAttribute
-  = do
+parseTagAttribute :: ReadP TagAttribute
+parseTagAttribute = do
   _ <- skipSpaces
   k <- munch1 (/= '=')
   _ <- string "=\""
@@ -385,92 +287,37 @@ parseTagAttribute
   _ <- skipSpaces
   return (toLower' k, v)
 
-parseAny
-  ::  ReadP Char
-parseAny
-  =
-  satisfy (const True)
+parseAny :: ReadP Char
+parseAny = satisfy (const True)
 
-parseNumber
-  ::  ReadP String
-parseNumber
-  =
-  munch1 isNumber
+parseNumber :: ReadP String
+parseNumber = munch1 isNumber
 
-skipSpaces1
-  ::  ReadP ()
-skipSpaces1
-  =
-  void $ skipMany1 (char ' ')
+skipSpaces1 :: ReadP ()
+skipSpaces1 = void $ skipMany1 (char ' ')
 
-isTag
-  ::  String
-  ->  Bool
-isTag
-  s
-  =
-  isOpeningTag s || isClosingTag s
+isTag :: String -> Bool
+isTag s = isOpeningTag s || isClosingTag s
 
-isOpeningTag
-  ::  String
-  ->  Bool
-isOpeningTag
-  s
-  =
-  isPresent $ readP_to_S parseOpeningTag s
+isOpeningTag :: String -> Bool
+isOpeningTag s = isPresent $ readP_to_S parseOpeningTag s
 
-isClosingTag
-  ::  String
-  ->  Bool
-isClosingTag
-  s
-  =
-  isPresent $ readP_to_S parseClosingTag s
+isClosingTag :: String -> Bool
+isClosingTag s = isPresent $ readP_to_S parseClosingTag s
 
-readInt
-  ::  String
-  ->  Int
-readInt
-  =
-  read
+readInt :: String -> Int
+readInt = read
 
-toLower'
-  ::  String
-  ->  String
-toLower'
-  =
-  map toLower
+toLower' :: String -> String
+toLower' = map toLower
 
-remove
-  ::  (a -> a -> Bool)
-  ->  [a]
-  ->  a
-  ->  [a]
-remove
-  f
-  xs
-  x
-  =
-  filter
-    (f x)
-    xs
+remove :: (a -> a -> Bool) -> [a] -> a -> [a]
+remove f xs x = filter (f x) xs
 
-add
-  ::  (a -> a -> Bool)
-  ->  [a]
-  ->  a
-  ->  [a]
-add
-  f
-  xs
-  x
+add ::  (a -> a -> Bool) -> [a] -> a -> [a]
+add f xs x
   | isPresent xs = remove f xs x ++ [x]
   | otherwise    = [x]
 
-isPresent
-  ::  Foldable t
-  =>  t a
-  ->  Bool
-isPresent
-  =
-  not . null
+isPresent :: Foldable t => t a -> Bool
+isPresent = not . null
