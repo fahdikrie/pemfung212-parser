@@ -9,10 +9,8 @@ import Text.ParserCombinators.ReadP
 import Data.Char
 import Data.Maybe
 
-main
-  ::  IO ()
-main
-  = do
+main :: IO ()
+main = do
   putStrLn "What is the version output file path?"
   filePath   <- getLine
   text       <- readFile filePath
@@ -23,25 +21,15 @@ main
   putStrLn ""
   print result
 
-parseVersionNumber
-  ::  [String]
-  ->  ReadP [String]
-parseVersionNumber
-  nums
-  = do
+parseVersionNumber :: [String] -> ReadP [String]
+parseVersionNumber nums = do
   _         <- parseNotNumber
   num       <- parseNumber
   let nums' = nums ++ [num]
   parseSeparator nums' parseVersionNumber
 
-parseSeparator
-  ::  [String]
-  ->  ([String] -> ReadP [String])
-  ->  ReadP [String]
-parseSeparator
-  nums
-  f
-  = do
+parseSeparator :: [String] -> ([String] -> ReadP [String]) -> ReadP [String]
+parseSeparator nums f = do
   next <- look
   case next of
     ""    -> return nums
@@ -51,21 +39,11 @@ parseSeparator
         '-' -> if length nums == 1 then f [] else f nums
         _   -> if length nums == 1 then f [] else return nums
 
-parseNotNumber
-  ::  ReadP String
-parseNotNumber
-  =
-  munch (not . isNumber)
+parseNotNumber :: ReadP String
+parseNotNumber = munch (not . isNumber)
 
-parseNumber
-  ::  ReadP String
-parseNumber
-  =
-  munch1 isNumber
+parseNumber :: ReadP String
+parseNumber = munch1 isNumber
 
-readInt
-  ::  String
-  ->  Int
-readInt
-  =
-  read
+readInt :: String -> Int
+readInt = read
